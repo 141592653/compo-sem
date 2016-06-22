@@ -1,0 +1,1049 @@
+ \input{entete}
+
+
+\begin{document}
+\title{Semantics of a component-oriented programming language : \compo{}}
+\author{Julien RIXTE}
+\maketitle
+
+\setcounter{tocdepth}{1}	
+\tableofcontents
+
+\input{compopp}
+
+\lstset{language=Compo}
+
+\newtheorem{prop}{Proposition}
+\newtheorem{defi}{Definition}
+\newtheorem{inv}{Invariant}
+
+
+\chapter{Introduction}
+
+First, we will give an overview and by the way an informal semantics of \compo{}. Then, we will define an operational semantics of the language. In a third chapter, we will discuss the use of primitives. Once the theoretical aspect are dealt with, we will give a glimpse of our implementation of a certified interpreter of \compo{} in Coq. To finish, we will focus on the reflexivity of the language.
+
+
+\chapter{Description of \compo{}}
+
+This chapter allows to the reader to become familiar with the language \compo{}. It will also give us the opportunity to give informal semantics of the language constructions. All the definitions follow closely the Petr Spacek's thesis \cite{Spa13}, unless stated otherwise.
+
+\section{Overview}
+As in object oriented programming, the main concepts in \compo{} are \textbf{descriptors} and \textbf{components}, where a component is an instance of a descriptor. A component can require or provide services  threw \textbf{ports}. To call a service a component has to \textbf{connect}  one of its \textbf{required ports} to a \textbf{provided port} of another component which provides the service needed. A descriptor can specify the \textbf{architecture} of composites (ie components containing subcomponents) by defining the connections between its subcomponents.
+
+\begin{table}[!ht]
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+\textbf{Component world}&\textbf{Object world}\\
+\hline
+Component & Object \\
+Descriptor & Class \\
+Service & Method \\
+Required port & Instance variable \\
+Provided port & None \\
+Connexion & None\\
+Architecture & Constructor\\
+\hline
+\end{tabular}
+\end{center}
+\caption{Correspondence between the component world and the object world}
+\end{table}
+
+\section{Descriptors and components}
+Here is an informal syntax for descriptors.
+\begin{lstlisting}
+Descriptor descrName extends superName
+{
+	provides{
+		provided port list
+	}
+	
+	requires{
+		externally required port list
+	}
+	internally requires{
+		internally required port list
+	}
+	
+	architecture{
+		connection list
+	}
+	
+	service service1(arg1,...,arg_n){ body }
+	service service2(...){ body }
+	
+}
+
+\end{lstlisting}
+
+A descriptor completely specifies a component behavior. It explicits the different ports, the services and the architecture of the component. 
+
+To create a new component from a descriptor, we have to use the keyword \textbf{new} : 
+\begin{lstlisting}
+my_descriptor.new()
+\end{lstlisting}
+This expression will return the port \textsf{default} (see \ref{special_port} below) of a new instance of the descriptor \textsf{my\_descriptor}. Notice that the programmer has never access to a whole component. He only has a point of view of this component threw a port (see TODO), here the port \textsf{default}.
+
+
+In the architecture section, the only ports a component can connect are its internally required ports and the externally required ports of its subcomponents. Subcomponents can be created by adding
+\begin{lstlisting}
+connect my_internally_required_port to my_new_subcomponent_descriptor.new();
+\end{lstlisting}
+in the architecture section.
+
+
+
+
+\section{Ports}
+All the ports are compound of an identifier and a signature of service list. Each port has an \textbf{owner}, i.e. the component to which the port belongs. However, ports can have different roles (provided/required) or visibilities (external/internal/local).
+\subsection{Special ports}
+\label{special_port}
+All the components have at list three ports : \textsf{default}, \textsf{self} and \textsf{super}. 
+
+\paragraph{Default}
+The port \textsf{default} is a provided port which by default provides all the services implemented within the component. Its default point of view is the set of the external ports. Nevertheless, it can be overridden in the \textsf{provides} section of the descriptor.
+\paragraph{Self} This port allows a component to call its own services. It is consequently a required port, automatically connected to the port \textsf{default}.
+\paragraph{Super} This port has the same role as \textsf{self}, but it considers the component as an instance of the super descriptor. (TODO)
+\subsection{Role}
+\label{port_role}
+A port can be either required or provided. The difference between those two kind of ports is their role in a connection : a required port express that a component needs some service that a provided port can furnish. Then, to call a service on a required port we need to connect this required port to a provided port which provides the services needed. For instance to call a service on the port \textsf{default} on a component viewed by a required port \textsf{p}.
+
+\begin{lstlisting}
+connect my_internally_required_port to default@p;
+my_internally_required_port.service_name(arg_1, ..., arg_n);
+\end{lstlisting}
+
+In some cases, we could want to express that the services required by a port are the same services as the services requires by another required port. We will call this mechanism \textbf{delegation}. A required port can then be \textbf{delegated} to another required port.  For instance, a muscle need energy to function. If we consider the muscle as a subcomponent of a human body, the human body still needs energy. We can then delegate the need of energy of the muscle to the need of energy of the human body. This need can then be satisfied by a provided service in a component \textsf{food}.
+
+In a similar manner, we can define delegation between to provided ports. For instance, if an enterprise has two branches, one producing pens and the other pencils, we can say that this enterprise produces both pens and pencil : the component \textsf{enterprise} has to provided ports \textsf{pen} and \textsf{pencil} which are delegated to the corresponding provided ports of the branches.
+
+The table \ref{connect_type} summaries these different ways to connect components.
+
+\begin{table}[!ht]
+\begin{center}
+\begin{tabular}{|c|cc|}
+\hline
+\backslashbox{Connect}{To} & Provided & Required \\
+\hline
+Provided & Delegation & $\times$ \\
+Required & Regular connection & Delegation \\
+\hline
+\end{tabular}
+\caption{Connection types}
+\label{connect_type}
+\end{center}
+\end{table}
+
+\paragraph{Connection chains}
+The fact that provided ports can be delegated leads us to ask which port is actually providing the service. Let's consider a \textbf{connection chain} \[r_1, ... , r_m, p_1, ..., p_n\] where $r_1, ... , r_m$ are required port, $p_1, ... , p_n$ are provided port , $r_1$ is delegated to $r_2$, $r_2$ to $r_3$ ... $r_{m-1}$ to $r_m$, $r_m$ connected to $p_1$ and $p_1$ is delegated to $p_2$, ... ,$p_{n-1}$ to $p_n$. $p_1$ is called the \textbf{providing port} of the chain and $p_n$  \textbf{final port}. Even if the port which actually executes the service is the final port, we will consider that the port providing the service is the providing port. As an analogy, if we see required ports as pointers, they point on the providing port and not on the final port.
+
+This is not only a matter of vocabulary. Indeed, the instruction $!r$ will return the providing port of the connection chain starting from $r$ and not the final port. 
+
+\subsection{Visibility}
+\paragraph{External}
+
+\paragraph{Internal}
+
+\paragraph{Local}
+\label{local_visibility}
+A local port is a port which exists within a service. At the end of the service, it is deleted. If  an internal port is connected (in the broad sense) to the local port, the connection will be broken. It is repaired at the end of the service (see TODO).
+
+
+
+\section{Services}
+\subsection{Argument passing}
+
+\subsection{Return}
+\label{transp_port}
+A service can either return a provided port or a required port. However, if it returns a provided port, it is not possible to chain calls : 
+\begin{lstlisting}
+(port.get_provided_port()).a_service(); "here get_provided_port returns a provided port"
+\end{lstlisting}
+will crash. In fact, this is not really a problem because the programmer could always write 
+\begin{lstlisting}
+require tmp_port;
+connect tmp_port to port.get_provided_port();
+tmp_port.a_service;
+\end{lstlisting}
+
+We believe that this is to heavy (TODO voc). Then, we will introduce transparent ports, which will allow to chain the service calls.
+
+\begin{defi}
+A port $p$ is \textbf{transparent} iff it is impossible to connect a port p' to p. If the programmer tries to connect a port p' to p, p' will be connected to the first non transparent port of the connection chain starting from p.
+\end{defi}
+
+If a provided port is returned we will create an temporary transparent required port connected to the provided port. It is then possible to call a service on this port. Moreover, if we want to connect a port to the return, it will be connected to the provided port and not to the transparent port. A transparent port can not be manipulated by the programmer.
+
+
+
+\subsection{Points of view}
+
+\begin{lstlisting}
+Descriptor PrivacyExample extends Component
+{
+	provides{
+		default:{public_serv} - {private_prov}
+		private_prov:{private_serv}
+	internally requires{
+		private:{private_serv()}
+	}
+	
+	service public_serv{...}
+	service private_serv{...}
+	
+}
+
+\end{lstlisting}
+(TODO : templates)
+
+
+
+\section{Our contributions}
+\paragraph{Visibility}
+Both internal and external ports were already implemented by Petr Spacek. However internal ports were accessible via the operator \textbf{@}. Moreover, a component was able to build a connection with any port. This problem had already been pointed out by our predecessors who had suggested that it should not have the possibility to connect its external ports. We went even further : a component can only connect its own internally required ports and the required ports of its direct subcomponents.
+
+\paragraph{Providing/final port}
+Our predecessors identified two kinds of argument passing : 
+\begin{description}
+\item[Call-by-require] (TODO add the schemes of Jimmy's report)
+\item[Call-by-provide]
+\end{description}
+
+They introduced the notation \textsf{!p} \textbf{only in the argument passing} to specify that the argument was passed by require. A first critic is that ! is the dereferencing operator in OCaml dereferencing and it would be more intuitive to use ! for the call-by-provide passing mode.
+
+Moreover it seems reasonable to have also the possible to do a provided connection, i.e. to have the ability to connect to a provided port instead of the required port. We then decided that the operator ! will be an expression instead of an annotation. We also introduced the definitions of providing port and final port.
+
+
+\subsection{Points of view}
+The status of the variables and of the ports were not clearly define. Indeed, the initial vision of the expression
+\begin{lstlisting}
+name@expr
+\end{lstlisting} implicitly considered that it was returning the port \textsf{name} of the owner of \textsf{expr}, while expr is in fact a port. We believe that it was not relevant because it would imply all the components \textit{were} their ports. Instead, we proposed that each port is in fact a point of view of the component, which can occult some other ports.
+
+
+\section{Abstract syntax}
+\begin{figure}[ht!]
+\framebox[\textwidth][c]
+{\parbox{\textwidth}
+{\small
+\hspace{0.2cm}
+\begin{description}
+
+\item[Program (in a service)]:
+
+\begin{align*}
+&Name &::=~& camelCase \\
+&Expr &::=~& Name ~|~ Expr.Name(Expr, ... , Expr) ~|~ Name \textbf{@} Expr ~|~ !Expr\\
+&Prog &::=~& \perp ~|~ Prog;Prog ~|~ \textbf{require}~Name ~| \\
+	&&&\qquad \textbf{connect} ~ Name ~ \textbf{to} ~ Expr ~|~ \textbf{return}~Prog  
+\end{align*}
+
+
+\item[Port]:
+\begin{align*}
+&Sig &::=~& Name(Name,...,Name)&~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\\
+&List[V] &::=~& \epsilon ~|~ V;List[V]&\text{where $V$ is a variable of the grammar}\\
+&Port &::=~& Name : \{List[Sig]\}&
+\end{align*}
+
+
+\item[Descriptor] :
+\begin{align*}
+&Serv &::=~& \textbf{service} ~ Sig ~ \{Prog\} \\
+&Descr &::=~& \textbf{descriptor} ~ Name ~ \textbf{extends} ~ Name\{  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\\
+&&&~~~~\textbf{provides}~\{List[Port]\} \\
+&&&~~~~\textbf{requires}~\{List[Port]\} \\
+&&&~~~~\textbf{internally~requires}~\{List[Port]\} \\
+&&&~~~~\textbf{architecture}~\{List[Connect]\} \\
+&&&~~~~List[Service]~(without~;) \\
+&&&\}  
+\end{align*}
+
+\end{description}
+
+}}
+\caption{\compo{}'s abstract syntax}
+
+
+\label{fig:syn}
+\end{figure}
+To add : ofKind (spa13 p.165) et * (universal interface) and 
+
+
+
+\section{Repairing connections at the end of a service}
+Keep a list of port connected to a local port. Then two possibilities : 
+*make all the local ports transparent and call the connect instructions on all the port of the list + pass the list to the calling service
+*optimisation : connected components of the graph of the local ports.
+
+
+
+
+\chapter{Type system}
+
+
+\begin{figure}[ht!]
+\framebox[\textwidth][c]
+{\parbox{\textwidth}
+{\small
+\begin{prooftree}
+\AXCm{}
+\LLm{Var}
+\UICm{\Theta, v : T \vdash v : T}
+\end{prooftree}
+\vspace{0cm}
+
+}}
+\caption{Type system of \compo{}}
+
+
+\label{fig:type_syst}
+\end{figure}
+
+
+
+
+
+
+
+
+
+\chapter{\compo's semantics}
+In this section, we are going to describe a big-step semantics of \compo{}. We choose the big-step style because the aim of this internship is more to describe the language with precision than to prove theorems with the semantics. The, the big-step style is more relevant than a denotational or a small-step style \cite{Cha13}. Indeed, fix points make denotational more difficult to understand and small-step semantics do not describe what an instruction do as directly as big-steps semantics.
+
+\blockquote{We speculate that it would be easier to convince the standards committee in charge of a given programming language of the adequacy of a big-step formalization than to convince them of the adequacy of a small-step formalization.}{\cite{Cha13}}
+
+However, even if we are going to use a big-step style to describe programs, we will use a denotational style to describe the declaration of the language's structures e.g. signatures, services, ports, descriptors. We made this choice because the semantics of the declaration of a descriptor, for instance, only consists in parsing the different sections (e.g. requires, architecture) and make them available in a mathematical structure. Thus, it can be seen as a transformation of the text into a higher-level structure. Moreover, no fix-points will appear in the semantics.
+
+
+
+\section{Environments}
+In order to describe the program's state at each moment of the execution, we need several environments. Almost all the environments that we are going to introduce are partial functions from a set of identifiers to a value domain.
+
+\subsection{The descriptor environment}
+At each moment of the execution, we can invoke $descr.new()$. Consequently, we need an environment  $\Delta : Name \rightarrow \mathcal{D}$, where $\mathcal{D}$ is the value domain of descriptors. Once all the descriptors have been evaluated, this environment will not change during the execution.
+ (TODO à moins qu'on puisse déclarer de nouveaux descripteurs à partir de la couche réflexive).
+
+\subsection{The required port environment}
+This environment is similar to the standard environment of variables : its scope is local and it evolves each time a required port is declared or connected. Consequently, we need a partial function $\Pi : Name \rightarrow \Po$, where $\Po$ is the value domain of ports (as described in \ref{value_ports}, page \pageref{value_ports}). This environment will only contain the required port declared in the body of a service. Consequently, the required ports of the component which owns the service are not in $\Pi$.
+
+
+\subsection{The component environment}
+This environment gives us references to components. As we will store connections in ports, ports will need to store components. However, if a port $p$ owns the whole component to which it is connected, if this component is changed by another port, it will not be changed in $p$. Thus, we will need a partial function $\Gamma : \mathbb{N} \rightarrow \C$, where $\C$ is the value domain of components as defined in \ref{component_value}, page \pageref{component_value}. Each component has then a unique identifier. To refer to $\mathbb{N}$ as the set of references to components, we define $\Cref = \mathbb{N}$.
+
+\subsection{The current component}
+In the execution of a service, we need to be aware of the component to which this service belongs. Indeed, as the require ports of the current component are not in $\Delta$, we have to add it in the state of a program, otherwise we could not access those ports. As all components are contained in $\Gamma$, we only need $\sigma \in \mathbb{N}$ the reference to the current component
+
+
+
+
+
+
+\section{Value domains}
+In the semantics, we will need as many domain values as structures in the language. We give a summary of the value domain in the table  \ref{tab:DomVal} and notations are specified in the annex.
+
+\subsection{Error}
+We already have the error program $\perp$. This program, when it is evaluated, have to return a value that we will call $\perp$ too. For each incorrect program, the semantics will give this value.
+
+\subsection{Side effect}
+Some programs as \textbf{connect} do not return any value. Then we need a value for side effects denoted $()$.
+
+\subsection{Signatures}
+The signature of a service consists in its name, the type of its arguments and the return type.
+Here we will consider that arguments of signatures are not typed. Consequently, two signatures are equal if and only if they have the same name and the same number of arguments. 
+\[\Sig = Name \times \mathbb{N}\]
+
+\subsection{Services}
+A service is the implementation of a signature. To characterize a service, we need three informations : 
+\begin{itemize}
+\item[•] its \textsf{name}, which is actually contained by the signature of the service
+\item[•] the ordered list of the arguments name of the service. We define $\mathcal{L}(E)$
+the set of the elements belonging to a set $E$ by induction : 
+\begin{itemize}
+\item $ \mathbf{nil} \in \mathcal{L}(E)$
+\item $ x \in E  \implies l \in \mathcal{L}(E) \implies x::l \in \mathcal{L}(E) $
+\end{itemize}
+The argument list domain is then $\mathcal{L}(Name)$.
+\item[•] the \textsf{implementation} of the service i.e. an element of $Prog$.
+\end{itemize}
+To conclude, 
+\[\Serv = \Sig \times \mathcal{L}(Name)\times Prog\]
+
+Let's note that we could have chosen to only store the name of the service instead of its signature because the number of arguments can be deduced of the list. However, it will be simpler to store the signature because it will allow us, at the call of a service, to directly test the equality of signatures.
+
+
+\subsection{Connexions} There are to possibilities to represent connexions :
+\begin{itemize}
+\item add a new value domain \textsf{connexion} which would be a set of port pairs. 
+\item store directly in the ports the ports to which they are connected.
+\end{itemize}
+
+We will adopt the second option. This choice is justified by two facts. First, in his thesis, Petr Spacek decided to not reify the connections (TODO : citation + explication) and considering a connexion as a value would be similar to reifiy a connexion. (TODO justifier parce que c'est quand même un peu gratuit).  Second, it will simplify the semantics rules because we will not have an intermediate object to get the component connected to the port on which we call a service.
+
+\subsection{Ports}
+\label{value_ports}
+First of all, let's explain why we can consider that required ports and provided ports can share the same domain value. The main difference between a provided port and a required port is that the signature of the provided port (if it is not delegated) demands an implementation of the signatures it contains. However, as two provided ports of a same component can provide a same service, it's seems that the sles ports accessibles depuis notre port ervices should be owned by components and not by ports to avoid redundancy. That is why the provided ports will not contain the implementation of the services they provide. 
+
+Consequently, both required ports and provided ports only contain signatures and as a provided port can be connected to another provided port, both need to store the port to which they are connected. Thus we will use a unique value domain $\Po$ for provided ports and required ports.
+ 
+
+Here we list the necessary informations to characterize a port :
+\paragraph{Name} The name of a port allows us to identify it. Two ports, even if one is provided and the other required can not have the same name. 
+\paragraph{Signatures} We need to know the signature set of a port to verify that the call of a service is authorized. As the order in which signatures appear does not matter, we will use signature sets rather than signature lists.
+\paragraph{Connexion}
+We chose to store connexions directly in the ports. To do this, we need to store the port and the component to which our port is connected\footnote{here we use the word connected in the broad sense : it can be either connected or delegated}. In fact, as a component must store all its ports, knowing the name of the port  and the reference of the component is enough to be able to identify it.
+\paragraph{Owner component}
+When the instruction $name@p$ is evaluated, we need to access to the port called $name$ in the component to which $p$ belongs. Then each port must store a reference to the component to which it belongs.
+
+\paragraph{Accessible ports}
+Access to an internal port is forbidden from a service which does not belong to the owner of this internal port.(TODO)
+
+\paragraph{}
+
+To conclude, we define
+\[\Po = Name \times \Cref \times \mathfrak{P}(\Sig)\times Name \times \Cref \times \mathfrak{P}(Name)\]
+We then define those field names : $<self_{name}, self_c,sigs,cp_{name},cp_{c},ap>$ with
+
+\begin{tabular}{ll}
+$self_{name}$ & the port's name\\
+$self_c$ & the identifier of the component to which the port belongs\\
+$sigs$ & the signature set\\
+$cp_{name}$ &  the name of the port to which our port is connected \\
+$cp_c$ & the identifier of the component to which our port is connected \\
+$ap$ & the ports accessible from our port via the operator \textbf{@}
+\end{tabular}
+
+
+
+\subsection{Components}
+\label{component_value}
+A component has to store :
+\begin{itemize}
+\item[•] its services
+\item[•] its provided ports
+\item[•] its external required ports
+\item[•] its internal required ports
+\end{itemize}
+
+In fact, there is no need to store the services in each component. Indeed, it would be a loss of memory as all the components of a same descriptor will have the same services. Consequently, we will instead store the name of the descriptor of the component and access the services on the descriptor.
+
+Each of those structures is identified by a name and two ports, even if they don't have the same visibility, can not have the same name. A component is then characterized by three partial functions which domain is included in $Name$. Names are consequently a redundant information but using partial functions rather than sets highly simplifies  the notations.
+
+\[\C= Name \times (Name \rightarrow \Po)^3\]
+
+
+
+\subsection{Descriptors}
+The descriptor value is not really different from the syntactic declaration of a descriptor. As a descriptor is not instantiated, we can not declare ports nor execute the architecture. We will only separate the different sections of the descriptor and store them in different fields : 
+
+\[\D = Name^2 \times (Name \rightarrow \Po)^3 \times Prog \times Name\rightarrow \Serv\]
+
+
+\begin{table}[!ht]
+\begin{center}
+\begin{tabular}{|c|c|l|}
+
+\hline
+Notation & Value type & Domain\\
+\hline
+ $\Sig$  &  Signature & $Name \times \mathbb{N}$\\
+ $\Serv$ & Service & $\Sig \times \mathcal{L}(Name) \times Prog$ \\
+ $\Po$ & Port & $Name \times \Cref \times \mathfrak{P}(\Sig)\times Name \times \Cref \times \mathfrak{P}(Name)$ \\
+ $\C$ & Component & $ Name \times (Name \rightarrow \Po)^3$ \\
+ $\D$ &  Descriptor & $ Name^2 \times List[Port]^3 \times Prog \times Name\rightarrow \Serv $\\
+
+\hline
+\end{tabular}
+\end{center}
+\label{tab:DomVal}
+\caption{Value domains}
+\end{table}
+
+\section{Semantics of the language structures}
+
+\subsection{Miscellaneous functions}
+
+\subparagraph{Semantics of lists}
+Lists appear frequently in \compo : there are lists of arguments, of ports, of services and of signature. We then need a function which takes a semantic function on a domain value $D$ and lift it to a semantic function on $\mathcal{L}(D)$ or $\mathfrak{P}(D)$. More formally, we want to lift $[\![]\!] : E \rightarrow F$ (where $E$ is a subset of elements of the grammar of \compo and $F$ a value domain) to a function $lift: List[E] \rightarrow \mathfrak{P}(E)$ or $\mathcal{L}(E)$.
+
+Such a function is naturally defined by
+\[\begin{array}{lll}
+lift_\mathfrak{P} :&(E\rightarrow F) &\rightarrow List[E] \rightarrow \mathfrak{P}(E))\\
+&[\![]\!] &\rightarrow \begin{cases}
+\epsilon &\rightarrow \emptyset \\
+x_1; ... ; x_n &\rightarrow \{[\![x_1]\!]\}\cup lift_\mathfrak{P}([\![]\!])(x_2;...;x_n)
+\end{cases}
+\end{array}
+\]
+
+In the same way, we define
+\[\begin{array}{lll}
+lift_\mathcal{L} :&(E\rightarrow F) &\rightarrow List[E] \rightarrow \mathcal{L}(E))\\
+&[\![]\!] &\rightarrow \begin{cases}
+\epsilon &\rightarrow \mathbf{nil} \\
+x_1; ... ; x_n &\rightarrow [\![x_1]\!] :: lift_\mathcal{L}([\![]\!])(x_2;...;x_n)
+\end{cases}
+\end{array}
+\]
+\vspace{0.5cm}
+
+From now on, we would take the liberty to write  $[\![]\!](x_1;...;x_n)$ instead of \newline $lift_{\mathfrak{P}/\mathcal{L}}([\![]\!])(x_1; ... ; x_n)$ when there is no ambiguity.
+
+
+\subsection{Semantics of signatures}
+Let us define the function $[\![]\!]_{sig} :  Sig \rightarrow \Sig $. It just consists in extracting the name of the signature and counting the number of arguments in a signature . Then we will need $[\![]\!]_{args} : (Name, ... , Name) \rightarrow \mathbb{N}$  which counts the number of elements of a list : 
+\[\begin{array}{llll}
+&[\![()]\!]_{args} &=& 0\\
+&[\![(arg_1,...,arg_n)]\!]_{args} &=& 1 + [\![(arg_1,...,arg_{n-1})]\!]_{args} 
+\end{array}\]
+
+We can directly deduce
+\[[\![name(arg_1,...,arg_n)]\!]_{sig} = <name, [\![(arg_1,...,arg_n)]\!]_{args}> \]
+
+\subsection{Semantics of services}
+The semantics of a service can be directly deduced of the domain value of services : we only need to extract a signature, an argument list and a body.
+
+\begin{multline*}
+[\![\textbf{service}~name(arg_1,...,arg_n)\{
+	body
+	\}
+]\!]_{serv}=\\
+\qquad  <[\![name(arg_1,...,arg_n)]\!]_{sig}, lift_{\mathcal{L}}(Id_{Name})(arg_1,...,arg_n), body>
+\end{multline*}
+where $Id_{Name}$ is the identity function on $Name$.
+\subsection{Semantics of ports}
+Here, we will describe the semantics of a port declaration. A port needs to know to which component it belongs. Consequently, the semantics of the declaration of a port depends on the component where this declaration is located. We then search a function with the form
+\[[\![]\!]_{p} : Port \rightarrow \Cref \rightarrow \Po\]
+
+such that $[\![name:\{sig_1; ... ; sig_n\}]\!]_{p}(\sigma)$ returns a value of the port domain owned by the component $\sigma$.
+
+As we can see in the definition of the value domain $\Po$, a port is always connected to another port. We then need to find a solution to connect ports at initialization. To do that, we have to distinguish provided and required ports : at initialization , a provided port will be connected to itself (as it provides its own services) and a required port to a void provided port. Moreover, the point of views of internal port and an external port are different. We then need three functions for ports even if we have only one domain.
+
+\paragraph{Provided ports} 
+To specify that a provided port is not delegated, we are going to connect it to itself. It will then be easy to know whether a port is final : it just consists in testing the equality between $(self_{name}, self_c)$ and $(cp_{name}, cp_c)$.
+
+Moreover, a provided port is an external port. Consequently, we cannot access internal ports via a provided port.
+
+\begin{multline*}
+[\![name:\{sig_1; ... ; sig_n\}]\!]_{pp}(\sigma) = \\
+\qquad <name,\sigma,[\![]\!]_{sig}(sig_1; ... ; sig_n), name, \sigma, Dom(\sigma\#\pi_X) >
+\end{multline*}
+
+
+\paragraph{Required port}
+A required port which is not connected will behave as follow : when a service is called on this port or if it is used in the right part of an @, the program will crash. This behavior can be simulated by connecting the required port to a void provided port with a void point of view on the component to which it belongs. 
+
+Let us define  $\otimes = <void,0,\emptyset,void,0,\emptyset>$ the void provided port and $C_{\otimes} = <{\otimes},\emptyset,\emptyset,[]>$  the component with only one port : $\otimes$.
+We will need to access this component. We can then assume that it will always be referenced by 0 in $\Gamma$ at any moment of the execution.
+
+\begin{inv} At any time of the execution, $0$ refers to the component $C_{\otimes}$ \end{inv}
+
+The point of view of external required ports is the same as that of provided ports. However, internal ports can see all the ports of the component to which they belong. Finally, we can define
+\begin{multline*}
+[\![name:\{sig_1; ... ; sig_n\}]\!]_{erp}(\sigma) =\\
+\qquad <name,\sigma,[\![sig_1; ... ; sig_n]\!]_{sig}, empty, 0,Dom(\sigma\#\pi_X) >
+\end{multline*}
+and
+\[[\![name:\{sig_1; ... ; sig_n\}]\!]_{irp}(\sigma) = <name,\sigma,[\![sig_1; ... ; sig_n]\!]_{sig}, empty, 0,Dom(\sigma\#\pi))>
+\]
+
+It may be worth to remind that we took the freedom to write $[\![sig_1; ... ; sig_n]\!]_{sig}$ instead of $lift_\mathfrak{P}([\![]\!]_{sig})(sig_1; ... ; sig_n)$.
+
+
+\subsection{Semantics of descriptors}
+The semantics of a descriptor only consists in extracting informations. However, we do not know the reference of the owner to initialize the provided ports. The best would have been to evaluate it later. Though, we will need to verify the specialization of ports in the inheritance mechanism. We will then initialize the connexion of the provided ports and we will correct it when \textsf{new} is called.
+\begin{align*}
+&[\![\textbf{descriptor} ~ descr\_name ~ \textbf{extends} ~ super\_name \{ \\
+&\qquad\textbf{provides}~\{pp\} \\
+&\qquad\textbf{requires}~\{erp\} \\
+&\qquad\textbf{internally~requires}~\{irp\} \\
+&\qquad\textbf{architecture}~\{arch\} \\
+&\qquad servs\\
+\} &]\!]_{descr}(\Delta)  = \\
+&\begin{cases} d & \text{if $inheritanceCorrectness(\Delta,d)$}\\
+\perp & \text{else}
+\end{cases} 
+\end{align*}
+where \begin{multline*}d = <descr\_name,super\_name,[default \rightarrow default_{port}] + \![pp]\!]_{pp}(0), \\
+[self \rightarrow self_{port}; super \rightarrow super_{port}]+ \![erp]\!]_{erp}(0),[\![irp]\!]_{irp}(0),arch,[\![servs]\!]_{serv}>\end{multline*}.
+
+Note that all the fields except the name are optional in descriptor. Let us precise the value of $[\![]\!]_{descr}$ when a field has not been given.
+\begin{description}
+\item[super\_name] if the descriptor do not inherit from any other descriptor, $super\_name = descr\_name$
+\item[pp/erp/irp] void function
+\item[service] void list
+\item[architecture] $\epsilon$ (the void word?? TODO)
+\end{description}
+
+
+Let us define $inheritanceCorrectness$ by closely follow the choices made by Petr Spacek \cite{Spa13}.
+
+\paragraph{Inheritance verification}
+
+
+
+\section{Big-step semantics of expressions}
+The rules of the semantics will follow the scheme :
+\[environments \vdash expression \implies value~;~new~environments\]
+
+As the descriptor environment $\Delta$ does not vary during the execution, it will not appear in the rules. (TODO reflexivity?)
+
+\subsection{Some simplifications}
+Let us give some definitions to facilitate the reading of the rules
+
+\paragraph{Initialization of an environment}
+At the beginning of a service execution, we have to initialize the environments of require ports. In the service we will have to access to
+\begin{itemize}
+\item[•]the required ports of the component owning the service
+\item[•]the parameter ports 
+\end{itemize}
+
+A first approach would be to not distinguish the instance ports and the local ports (i.e. the parameter ports and the temporary ports). Though, a local port and an instance port do not behave exactly the same way : an instance port appears in a connection chain while a local port is transparent (see \ref{local_visibility} page \pageref{local_visibility}).
+
+That is why we will not include the required port environment of the component in the environment of the service. The initialization then consists in create an environment for the parameter ports.
+
+\paragraph{Use of the required port environment}
+However, this decision add a little difficulty : if a local port has the same name as an instance port, we have to specify that we are referring to the local port. We will then use an augmented environment $\Pi_\sigma^+$, depending on a component $\sigma$ :
+
+\[\Pi^+_\sigma(x) = \begin{cases}
+\Pi(x) & if ~ x\in Dom(\Pi)\\
+\sigma\#\pi_R(x) & else~if~x\in Dom(\sigma\#\pi_R)\\
+\perp & else
+\end{cases}\]
+
+\paragraph{Creation of a transparent port}
+After a service call, we will need to create a transparent port (cf \ref{transp_port}) if the service has returned a provided port. However, if the service had returned a required port, we do not need to change anything. Here we define how this transparent port is declared when a service called by a component $\sigma$ returned a port $p$ : 
+\begin{multline*}transp_\sigma(p)= \\
+\begin{cases}
+<\epsilon,\sigma,p\#sigs,p\#name,p\#self_c,p\#ap,true> & \text{if } p\#name \in Dom(p\#\pi_p)\\
+p & \text{else}
+\end{cases}
+\end{multline*}
+
+
+
+\subsection{Localization of ports}
+As seen in \ref{port_role} page \pageref{port_role} we will need to locate the providing port and the final port. To do so, we just have to follow the path and to verify that each step of the path is correct. We first define a function to find the providing port.
+
+\begin{multline*}findProv_{\Envswso{}}(p) =\\
+\qquad \begin{cases}
+p &\text{if $ p\#self_{name}\in Dom(\Gamma(p\#self_c) \#\pi_P)$} \\
+findProv_{\Envswso{}}(p\#cp) &\text{else if $p\#cp\#name \in Dom(p\#cc\#\pi)$}\\
+\otimes & \text{else}
+\end{cases}
+\end{multline*}
+
+Then we can define a miscellaneous function which takes in argument provided port and returns the final port.
+
+\begin{multline*}findFinalFromProv_{\Envswso{}}(p) =\\
+\qquad \begin{cases}
+p &\text{if $p\#self_{name} = p\#cp_{name}$, $p\#self_c = p\#cp_c $}\\
+& \text{and $\qquad p\#self_{name}\in Dom(\Gamma(p\#self_c) \#\pi_F)$} \\
+findFinalFromProv_{\Envswso{}}(p\#cp) &\text{else if $p\#cp\#name \in Dom(p\#cc\#\pi_P)$}\\
+\otimes & \text{else}
+\end{cases}
+\end{multline*}
+
+\[findFinal = findFinalFromProv \circ findProv\]
+
+(TODO : in fact we don't have to do any restriction, all the verifications are already done. to prove)
+
+
+\begin{inv}
+All the ports is connected by a connection chain to a final provided port.
+(TODO preuve de la bonne fondaison de la relation connect.)\end{inv}
+
+\begin{inv}
+\[\forall c \in Dom(\Gamma), Dom(c\#\pi_P)\cap Dom(c\#\pi_R)  = \emptyset\] ie un port requis et un port fourni d'un même composant ne peuvent pas avoir le même nom. (TODO déplacer)
+\end{inv}
+
+We can define in a very similar way a function $findNonTransp$ which returns the first non transparent port of a connection chain.
+
+
+\begin{figure}[ht!]
+\framebox[\textwidth][c]
+{\parbox{\textwidth}
+{\small
+\begin{prooftree}
+\AXCm{}
+\LLm{Var}
+\UICm{\Envs{}\vdash_{e} x \implies \Pi^+_\sigma(x); \Envswsp{}}
+\end{prooftree}
+\vspace{0cm}
+
+\begin{prooftree}
+\AXCm{\begin{array}{c}
+\Envs{}\vdash_{e} expr \implies val ; \Envswsp{'}\\
+\EnvsPers{'}{}{'}{}\vdash_{e} arg_1 \implies val_1 ; \Envswsp{_1}\\
+\vdots\\
+\EnvsPers{_{n-1}}{}{_{n-1}}{} \vdash_{e} arg_n \implies val_n ; \Envswsp{_n}\\
+\end{array}}
+
+\AXCm{\begin{array}{c}
+\EnvsPers{_n}{'}{_n}{'}\vdash_{p} prog \implies \\
+\qquad val' ; \Envswsp{''}
+\end{array}}
+\LLm{Call}
+\BICm{\Envs{}\vdash_{e} expr.serv(arg_1,...arg_n) \implies transp_\sigma(val');\EnvswspPers{''}{_n\cup\Omega''}}
+\end{prooftree}
+\hspace{0.2cm} with :
+ \begin{itemize}
+\item $val, val_{arg_1}, ..., val_{arg_n} \neq \perp$
+\item $val \in Dom(\Pi)\cup \sigma\#\pi_R$
+\item $\sigma' = findFinal_{\Envsws{}}(val)\#self_c$
+\item $\Pi_p = [arg_1\rightarrow <arg_1,\sigma',val_1\#sigs,val_1\#self_{name},val_1\#self_c,val\#ap>;$\newline
+ $...; arg_n \rightarrow<arg_n,\sigma',val_n\#sigs,val_n\#self_{name},val_n\#self_c,val\#ap>]$
+\item $prog = \begin{cases}val_{serv}\#body & \text{if it is defined and if } val_{serv}\#sig = <serv,n>\\
+&\qquad\text{and }<serv,n>\in val\#sigs\\
+\perp &\text{else} \end{cases}$
+
+where $val_{serv} = \Delta(\Gamma_n(\sigma')\#descr)\#servs(serv)$
+\end{itemize}
+
+\vspace{0.5cm}
+
+
+
+}}
+\caption{Semantics of expressions}
+
+
+\label{fig:semexpr1}
+\end{figure}
+
+
+
+\begin{figure}[ht!]
+\framebox[\textwidth][c]
+{\parbox{\textwidth}
+{\small
+\begin{prooftree}
+\AXCm{\Envs{}\vdash_e expr \implies val;\Envswsp{'}}
+\LLm{At}
+\UICm{\Envs{}\vdash_e port\textbf{@}expr \implies val';\Envswsp{'}}
+\end{prooftree}
+\hspace{0.2cm} with : \[val' = \begin{cases}
+\Gamma(pgp\#self_c)\#\pi_P(port)&\text{if it is defined and if $port\in pgp\#ap$} \\
+\Gamma(pgp\#self_c)\#\pi_{ER}(port)&\text{if it is defined and if $port\in pgp\#ap$} \\
+\perp & \text{else}
+\end{cases}
+\]
+where $pgp$ is the providing port of val : $pgp = findProv_{\Envsws{}}(val)$
+
+\vspace{0.5cm}
+\begin{prooftree}
+\AXCm{\Envs{}\vdash_{e} expr \implies val;\Envswsp{'}}
+\LLm{Path}
+\UICm{\Envs{}\vdash_{e}~!expr\implies val'; \Envswsp{'}}
+\end{prooftree}
+
+
+\hspace{0.2cm} where $val' = findProv(val)$
+
+
+\vspace{0.5cm}
+\begin{prooftree}
+\AXCm{\EnvswsPers{'}{}{},max \vdash_e arch \implies ();\EnvswspPers{''}{'}}
+\LLm{New}
+\UICm{\Envs{}\vdash_e descr.new() \implies val;\EnvswspPers{''}{'}}
+\end{prooftree}
+\hspace{0.2cm} with : 
+\begin{itemize}
+\item $newCompo = <descr\#servs,[\![descr\#\pi_P]\!]_{pp},[\![descr\#\pi_{ER}]\!]_{erp}, [\![descr\#\pi_{IR}]\!]_{irp}>$
+\item $max = max(Dom(\Gamma)) + 1$
+\item $\Gamma' = \Gamma + [max\rightarrow newCompo]$
+\item $val = \Gamma''(max)\#\pi_P(default)$
+\end{itemize}
+}}
+\caption{Semantics of expressions}
+
+
+\label{fig:semexpr2}
+\end{figure}
+
+\section{Operational semantics of programs}
+
+Explications :
+
+\subsection{Connect to}
+During all the execution, a component can only connect one of its own ports or an external of its subcomponent. Note that $v_1$ could be changed by $v_2$ but only the connected port (TODO prove) 
+
+\begin{figure}[ht!]
+\framebox[\textwidth][c]
+{\parbox{\textwidth}
+{\small
+\begin{prooftree}
+\AXCm{}
+\LLm{\perp}
+\UICm{\Envs{}\vdash_{p} \perp \implies \perp; \Envsws{}}
+\end{prooftree}
+\vspace{0cm}
+
+\begin{prooftree}
+\AXCm{\Envs{}\vdash_{p} prog1 \implies val1; \Envsws{'}}
+\AXCm{\Envs{'}\vdash_{p} prog2 \implies val2; \Envsws{''}}
+\LLm{Seq}
+\BICm{\Envs{}\vdash_{p} prog1;prog2 \implies val2; \Envsws{''}}
+\end{prooftree}
+\vspace{0cm}
+
+\begin{prooftree}
+\AXCm{\EnvsPers{}{_{transp}}{}{}\vdash_{e} expr \implies val; \Envswsp{'}}
+\LLm{Ret}
+\UICm{\Envs{}\vdash_{p} \textbf{return}~expr \implies Ret(findNonTransp(val)); \Envsws{'}}
+\end{prooftree}
++connect $\Omega$
+\vspace{0cm}
+
+\begin{prooftree}
+\AXCm{}
+\LLm{Require}
+\UICm{\Envs{}\vdash_{p} \textbf{require}~name \implies ();\EnvswsPers{}{+ [name\rightarrow <name,\sigma, \emptyset, empty, 0, \emptyset >]}{}}
+\end{prooftree}
+\vspace{0cm}
+
+
+
+
+\begin{prooftree}
+\AXCm{\Envs{}\vdash_{e} expr_1 \implies v_1; \Envswsp{'}}
+\AXCm{\Envs{}\vdash_{e} expr_2 \implies v_{transp}; \Envswsp{''}}
+
+\LLm{Connect}
+\BICm{\Envs{}\vdash_{p} \textbf{connect}~expr_1~\textbf{to}~ expr_2 \implies v_{res};\Envsws{_{res}}}
+
+\end{prooftree}
+\hspace{0.2cm} with :
+\begin{itemize}
+\item $v_2  =findNonTransp(v_{transp})$
+\item $v_{res}= \begin{cases} 
+() & \text{if $v_1\#sigs \subset v_2\#sigs$ \textbf{and}\Big(} \\ 
+&\qquad \text{\big($v_1\#self_c= \sigma$  \textbf{and} $v_1\#name \in v_1\#self_c\#\pi_I$ \big)\textbf{or}} \\
+&\qquad \text{\big($v_1\#self_c \in \{irp\#cp_c | irp \in Im(\sigma\#\pi_{IR})\}$ \textbf{and}}  \\
+&\qquad \text{ $v_1\#name \in Dom(v_1\#self_c\#\pi_{X})  $ \big) \Big)}\\
+\perp & \text{else}
+\end{cases}
+$
+\item
+ $\begin{array}{l}(\Envswso{_{res}}) =\\
+\qquad 
+ \begin{cases}
+(\EnvswsoPers{''}{ + [v_1\#name \rightarrow newPort])}) &\text{if $v1\#name \in Dom(\Pi)$}
+\\
+(\EnvswsoPers{'' + [v_1\#self_c \rightarrow newCompo]}{}) &\text{else}
+\end{cases}\end{array}$
+
+\item $\Omega_{res} = \begin{cases}
+\Omega'' \cup \{v_1\} & \text{if } v_1\notin Dom(\Pi)\text{ and } v_2 \in Dom(\Pi)\\
+\Omega'' & \text{else}
+\end{cases}
+$
+
+\item $newPort = \begin{cases}<v_1\#name,v_1\#self_c,v_2\#sigs,&\\
+\qquad \qquad  v_2\#cp_{name}, v_2\#cp_c,v_2\#ap>& \text{if }v_1\#name \in Dom(\Pi)\\
+\\
+<v_1\#name,v_1\#self_c,v_1\#sigs,&\\
+\qquad \qquad  v_2\#self_{name}, v_2\#self_c,v_1\#ap>& \text{else}\\
+
+
+
+
+\end{cases} $
+\item $newCompo = <\Gamma''(v_1\#self_c)\#servs,\pi_P,\pi_{ER}, \pi_{IR}>$
+where \[\pi_P~(resp~\pi_{ER},\pi_{IR})= \begin{cases}
+\Gamma''(v_1\#self_c)\#\pi_P~(resp~\pi_{ER},\pi_{IR}) + [name \rightarrow newPort]&\\
+\qquad \text{if $name\in Dom(\Gamma'(v_1\#self_c)\#\pi_P)~(resp~\pi_{ER},\pi_{IR})$}&\\
+\Gamma''(v_1\#self_c))\#\pi_P~(resp~\pi_{ER},\pi_{IR})\\ \qquad \text{else}
+\end{cases}\]
+\end{itemize}
+
+}}
+\caption{Sémantique des programmes}
+
+
+\label{fig:semexpr}
+\end{figure}
+
+
+
+\chapter{Puissance de calcul}
+Problématique : comment se passer des primitives?
+
+Il est possible de simuler le $\lambda -$calcul dans \compo : 
+\begin{lstlisting}[caption = Variable]
+freshVar(x) = 
+(Descriptor Var extends Component
+{
+	provides{
+		default : {run()}
+	}
+	requires{
+		x : {run();app(v)}
+	}
+	
+	service run(){
+		"return par terminal"
+		return x.run();
+	}	
+}).new()
+
+\end{lstlisting}
+
+
+\begin{lstlisting}[caption=$\lambda-$abstraction]
+lambda(x,u) = 
+(Descriptor Lam extends Component
+{
+	provides{
+		default : {run();app(v)}
+	}
+	requires{
+		u#requires - x
+	}
+	internally requires{
+		x :{run()}
+	}
+	
+	architecture{
+		"si u a un port requis x"
+		connect u@x to x;
+		
+		"pour tous les autres ports"
+		connect u@p to p;
+	}
+	
+	service run(){
+		return default;
+	}
+	
+	service app(v){
+		connect x to v;
+		return u.run();
+	}
+}).new()
+\end{lstlisting}
+
+\begin{lstlisting}[caption = Application]
+app(u,v)=
+(Descriptor App extends Component
+{
+	provides{
+		default : {run()}
+	}
+	requires{
+		u#requires + v#requires
+	}
+	
+	architecture{		
+		"pour tous les ports de u"
+		connect u@p to p;
+		"pour tous les ports de v"
+		connect v@p to p;
+	}
+	
+	service run(){
+		return u.app(v);
+	}
+	
+}).new()
+\end{lstlisting}
+
+
+
+
+
+ 
+\begin{appendices}
+\chapter{Notations}
+\paragraph{Ensembles}
+\begin{itemize}
+\item[•] Nous confondrons les noms des variables dans la syntaxe abstraite de \compo{} et les ensembles engendrés par ceux-ci.
+\item[•] Parties d'un ensemble $E$ : $\mathfrak{P}(E)$
+\item[•] Nous distinguerons les valeurs de la sémantique et les chaînes de caractère de la syntaxe en utilisant d'un côté des lettres (TODO: trouver bon mot) normales et de l'autre des lettre rondes.
+\item[•] On pose $\mathcal{L}(E)$ l'ensemble  des listes d'éléments d'un ensemble $E$ défini par induction comme suit : 
+\begin{itemize}
+\item $ \mathbf{nil} \in \mathcal{L}(E)$
+\item $ x \in E  \implies l \in \mathcal{L}(E) \implies x::l \in \mathcal{L}(E) $
+\end{itemize}
+
+
+\end{itemize}
+
+\paragraph{Application partielles} 
+\begin{itemize}
+\item[•] $Dom(f)$ : domaine de f.
+\item[•] $f = [i_1 \rightarrow v_1; i_2 \rightarrow v_2 ; ... ; i_n \rightarrow v_n]$ : application partielle de domaine $\{i_1, ... , i_n\}$ telle que $\forall k \in [\![1,n]\!]f(i_k) = v_k$.
+\item[•] $f = [i_1 \rightarrow v_1; i_2 \rightarrow v_2 ; ... ; i_n \rightarrow v_n] ~+~ i_{n+1} \rightarrow v_{n+1}$ : application partielle de domaine $\{i_1, ... , i_n, i_{n+1}\}$ telle que $\forall k \in [\![1,n+1]\!]f(i_k) = v_k$.
+\end{itemize}
+
+
+\paragraph{Domaines de valeurs}
+
+Chaque domaine est donné sous la forme d'un produit d'ensembles. Cependant, afin de distinguer une liste d'arguments et une valeur, nous écrirons une valeur du domaine $A\times B\times C$ avec une notation de la forme $<a,b,c>$ avec $(a,b,c)\in A\times B \times C$.
+
+De plus, nous aurons souvent besoin de désigner les différents champs de ces valeur. Recourir à des projections serait alors illisible. Nous allons donc donner un nom aux champs des valeurs et nous utiliserons la notation $foo\#bar$ pour désigner le champ $bar$ de la valeur $foo$. 
+
+Voici un tableau récapitulatif des noms des champs pour les différentes valeurs apparaissant dans la sémantique :
+
+\begin{table}[!ht]
+\begin{center}
+\begin{tabular}{|c|c|l|l|}
+
+\hline
+Notation & Value type & Field name & Value domain\\
+\hline
+ $\Sig$  &  Signatures & $<name,nb_{args}>$ &$Name \times \mathbb{N}$\\
+ $\Serv$ & Services & $<sig,args,body>$ &$\Sig \times \mathcal{L}(Name) \times Prog$ \\
+ $\Po$ & Ports  & $<self_{name}, self_c,sigs,$ & $Name \times \Cref \times \mathfrak{P}(\Sig)\times $ \\
+ &&$\qquad cp_{name},cp_{c},ap>$&$\qquad Name \times \Cref \times \mathfrak{P}(Name)$\\
+ $\C$ & Components & $<descr,\pi_P,\pi_{ER},\pi_{IR}>$ &$Name \times(Name \rightarrow \Po)^3 $\\
+ $\D$ &  Descriptors &$<name,super,pp,irp,$ &$Name^2 \times List(Port)^3$ \\
+&&\qquad $erp,arch,servs>$&\qquad $\times Prog \times Name \rightarrow \Serv$\\
+\hline
+\end{tabular}
+\end{center}
+\label{tab:DomValNotation}
+\caption{Value domains and notations}
+\end{table}
+
+Some additional notations : for a component $c$ we will note $c\#\pi = \pi_P + \pi_{ER} + \pi_{IR}$ ,  $c\#\pi_R = \pi_{ER}+\pi_{IR}$,  $c\#\pi_X = \pi_{ER}+\pi_{P}$ and  $c\#\pi_I = \pi_{IR}+\pi_{IP}$. All these partial functions are defined because the domains of $\pi_P, \pi_{ER}$ and $\pi_{IR}$ are pairwise disjoints.
+
+\paragraph{Environnements}
+
+\chapter{Vocabulaire}
+\begin{description}
+\item[Syntax directed] À chaque étape, on ne peut choisir qu'une règle.
+\item[Propriété de la sous-formule] Toutes les formules qui apparaissent dans une preuve sont des sous-formules de la formule prouvée.
+\item[Subcomponent] A component $A$ is a subcomponent of a component $B$ iff there is an internally required port of $B$ connected to a provided port of $A$.
+\end{description}
+
+
+\chapter{TODO}
+Expliquer pourquoi la réflexivité aide à écrire une sémantique. (mouais...)
+
+Sémantique des descripteurs 
+
+parallèle entre sémantique formelle et dessins
+
+expliciter où sont les primitives
+
+vérifier les dead locks
+
+
+Non treated in the semantics : ofkind, * , named interfaces, descritor name to specify a signature list, inheritance, collection ports (see Spa13 p; 159).
+
+Define more clearly seq and return
+
+WE : finish inheritance, Define more clearly seq and return, definitive version!!
+
+reflexivity
+
+$\Pi$ cannot be changed in expression. This can alleviate the notations.
+\end{appendices}
+\cite{SDT14}
+\cite{Spa13}
+
+\bibliographystyle{plain}
+\bibliography{ref}
+
+\end{document}

@@ -1,0 +1,26 @@
+\begin{thebibliography}{1}
+
+\bibitem{Cha13}
+Arthur Chargu{\'{e}}raud.
+\newblock Pretty-big-step semantics.
+\newblock In {\em Programming Languages and Systems - 22nd European Symposium
+  on Programming, {ESOP} 2013, Held as Part of the European Joint Conferences
+  on Theory and Practice of Software, {ETAPS} 2013, Rome, Italy, March 16-24,
+  2013. Proceedings}, pages 41--60, 2013.
+
+\bibitem{Spa13}
+Petr Spacek.
+\newblock Design and implementation of a reflective component-oriented
+  programming and modeling language, 2013.
+
+\bibitem{SDT14}
+Petr Spacek, Christophe Dony, and Chouki Tibermacine.
+\newblock A component-based meta-level architecture and prototypical
+  implementation of a reflective component-based programming and modeling
+  language.
+\newblock In {\em CBSE'14, Proceedings of the 17th International {ACM}
+  {SIGSOFT} Symposium on Component-Based Software Engineering (part of CompArch
+  2014), Marcq-en-Baroeul, Lille, France, June 30 - July 4, 2014}, pages
+  13--22, 2014.
+
+\end{thebibliography}
