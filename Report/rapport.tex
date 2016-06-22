@@ -280,18 +280,92 @@ Keep a list of port connected to a local port. Then two possibilities :
 
 
 \chapter{Type system}
+(TODO doit -on mettre requis / fourni dans le système de type?)
+\section{Environments}
+\subsection{Local environment}
+The local environment contains the type of all the local ports of a service (i.e. the arguments and the temporary variables). We need to store the connections of the ports and the role (required /provided) because otherwise, we will not be able to type the instructions ! and @ (to type them, we need to follow the connexion chain).  Consequently it can be represented as a partial function $\Theta : Name \rightarrow Interface \times \{R,P\} \times Name$
 
+\subsection{Descriptor environment}
+To type all the program, we will need to know the type of all the ports belonging to components. However, the type of a port can not change during the execution. Therefore we can just store the types of the ports in the descriptors : $\Delta:Name \rightarrow Name\rightarrow Interface \times \{R,P\} \times Name$
+
+\subsection{The current descriptor}
+When we are typing the body of a service, we need to know to which descriptor this service belongs.We will call this desciptor $\delta$.
+
+\section{What is typed?}
+\subsection{Port}
+interface + P/R + connection
+\subsection{Component}
+list of ports + descriptor
+\subsection{Descriptors}
+list of signature + architecture + port declarations
+
+\section{Type rules}
 
 \begin{figure}[ht!]
 \framebox[\textwidth][c]
 {\parbox{\textwidth}
 {\small
+
 \begin{prooftree}
 \AXCm{}
-\LLm{Var}
-\UICm{\Theta, v : T \vdash v : T}
+\LLm{Var_{loc}}
+\UICm{\TypeEnvs{} \vdash v : \Theta(v); \TypeEnvswst{}}
 \end{prooftree}
 \vspace{0cm}
+
+\begin{prooftree}
+\AXCm{}
+\LLm{Var_{descr}}
+\RLm{v\notin Dom(\Theta)}
+\UICm{\TypeEnvs{} \vdash v : \Gamma(\delta,v);\TypeEnvswst{}}
+\end{prooftree}
+\vspace{0cm}
+
+\begin{prooftree}
+\AXCm{\begin{array}{c}
+\TypeEnvs{}\vdash expr : T ; \TypeEnvswst{'}\\
+\TypeEnvs{'} \vdash arg_1 : T_1 ; \TypeEnvswst{_1}\\
+\vdots\\
+\TypeEnvs{_{n-1}} \vdash arg_n : T_n ; \TypeEnvswst{_n}\\
+\end{array}}
+
+\LLm{Call}
+\UICm{\TypeEnvs{}\vdash expr.serv(arg_1,...arg_n) : T\#type(serv)\#ret;\TypeEnvswst{_n}}
+\end{prooftree}
+\vspace{0cm}
+
+
+\begin{prooftree}
+\AXCm{\TypeEnvs{}\vdash expr : T;\TypeEnvswst{'}}
+\LLm{At}
+\UICm{\TypeEnvs{}\vdash port\textbf{@}expr :T';\TypeEnvswst{'}}
+\end{prooftree}
+\hspace{0.2cm} where $T' = \Delta(findProv(T)\#descr)(port)$
+
+
+\vspace{0.5cm}
+\begin{prooftree}
+\AXCm{\TypeEnvs{}\vdash expr : T;\TypeEnvswst{'}}
+\LLm{Path}
+\UICm{\TypeEnvs{}\vdash_{e}~!expr : findProv(T); \TypeEnvswst{'}}
+\end{prooftree}
+\vspace{0cm}
+
+
+\begin{prooftree}
+\AXCm{\EnvswsPers{'}{}{},max \vdash_e arch \implies ();\EnvswspPers{''}{'}}
+\LLm{New}
+\UICm{\Envs{}\vdash_e descr.new() \implies val;\EnvswspPers{''}{'}}
+\end{prooftree}
+\hspace{0.2cm} with : 
+\begin{itemize}
+\item $newCompo = <descr\#servs,[\![descr\#\pi_P]\!]_{pp},[\![descr\#\pi_{ER}]\!]_{erp}, [\![descr\#\pi_{IR}]\!]_{irp}>$
+\item $max = max(Dom(\Gamma)) + 1$
+\item $\Gamma' = \Gamma + [max\rightarrow newCompo]$
+\item $val = \Gamma''(max)\#\pi_P(default)$
+\end{itemize}
+
+
 
 }}
 \caption{Type system of \compo{}}
@@ -723,8 +797,7 @@ where $val_{serv} = \Delta(\Gamma_n(\sigma')\#descr)\#servs(serv)$
 \UICm{\Envs{}\vdash_e port\textbf{@}expr \implies val';\Envswsp{'}}
 \end{prooftree}
 \hspace{0.2cm} with : \[val' = \begin{cases}
-\Gamma(pgp\#self_c)\#\pi_P(port)&\text{if it is defined and if $port\in pgp\#ap$} \\
-\Gamma(pgp\#self_c)\#\pi_{ER}(port)&\text{if it is defined and if $port\in pgp\#ap$} \\
+\Gamma(pgp\#self_c)\#\pi_X(port)&\text{if it is defined and if $port\in pgp\#ap$} \\
 \perp & \text{else}
 \end{cases}
 \]

@@ -25,51 +25,60 @@
 \contentsline {section}{\numberline {2.6}Abstract syntax}{8}
 \contentsline {section}{\numberline {2.7}Repairing connections at the end of a service}{8}
 \contentsline {chapter}{\numberline {3}Type system}{9}
-\contentsline {chapter}{\numberline {4}\textsc {Compo}'s semantics}{10}
-\contentsline {section}{\numberline {4.1}Environments}{10}
-\contentsline {subsection}{\numberline {4.1.1}The descriptor environment}{10}
-\contentsline {subsection}{\numberline {4.1.2}The required port environment}{11}
-\contentsline {subsection}{\numberline {4.1.3}The component environment}{11}
-\contentsline {subsection}{\numberline {4.1.4}The current component}{11}
-\contentsline {section}{\numberline {4.2}Value domains}{11}
-\contentsline {subsection}{\numberline {4.2.1}Error}{11}
-\contentsline {subsection}{\numberline {4.2.2}Side effect}{11}
-\contentsline {subsection}{\numberline {4.2.3}Signatures}{11}
-\contentsline {subsection}{\numberline {4.2.4}Services}{12}
-\contentsline {subsection}{\numberline {4.2.5}Connexions}{12}
-\contentsline {subsection}{\numberline {4.2.6}Ports}{13}
-\contentsline {paragraph}{Name}{13}
-\contentsline {paragraph}{Signatures}{13}
-\contentsline {paragraph}{Connexion}{13}
-\contentsline {paragraph}{Owner component}{13}
-\contentsline {paragraph}{Accessible ports}{13}
-\contentsline {paragraph}{}{13}
-\contentsline {subsection}{\numberline {4.2.7}Components}{14}
-\contentsline {subsection}{\numberline {4.2.8}Descriptors}{14}
-\contentsline {section}{\numberline {4.3}Semantics of the language structures}{15}
-\contentsline {subsection}{\numberline {4.3.1}Miscellaneous functions}{15}
-\contentsline {subparagraph}{Semantics of lists}{15}
-\contentsline {subsection}{\numberline {4.3.2}Semantics of signatures}{15}
-\contentsline {subsection}{\numberline {4.3.3}Semantics of services}{15}
-\contentsline {subsection}{\numberline {4.3.4}Semantics of ports}{16}
-\contentsline {paragraph}{Provided ports}{16}
-\contentsline {paragraph}{Required port}{16}
-\contentsline {subsection}{\numberline {4.3.5}Semantics of descriptors}{17}
-\contentsline {paragraph}{Inheritance verification}{17}
-\contentsline {section}{\numberline {4.4}Big-step semantics of expressions}{18}
-\contentsline {subsection}{\numberline {4.4.1}Some simplifications}{18}
-\contentsline {paragraph}{Initialization of an environment}{18}
-\contentsline {paragraph}{Use of the required port environment}{18}
-\contentsline {paragraph}{Creation of a transparent port}{18}
-\contentsline {subsection}{\numberline {4.4.2}Localization of ports}{19}
-\contentsline {section}{\numberline {4.5}Operational semantics of programs}{19}
-\contentsline {subsection}{\numberline {4.5.1}Connect to}{19}
-\contentsline {chapter}{\numberline {5}Puissance de calcul}{23}
-\contentsline {chapter}{Appendices}{25}
-\contentsline {chapter}{\numberline {A}Notations}{26}
-\contentsline {paragraph}{Ensembles}{26}
-\contentsline {paragraph}{Application partielles}{26}
-\contentsline {paragraph}{Domaines de valeurs}{26}
-\contentsline {paragraph}{Environnements}{27}
-\contentsline {chapter}{\numberline {B}Vocabulaire}{28}
-\contentsline {chapter}{\numberline {C}TODO}{29}
+\contentsline {section}{\numberline {3.1}Environments}{9}
+\contentsline {subsection}{\numberline {3.1.1}Local environment}{9}
+\contentsline {subsection}{\numberline {3.1.2}Descriptor environment}{9}
+\contentsline {subsection}{\numberline {3.1.3}The current descriptor}{9}
+\contentsline {section}{\numberline {3.2}What is typed?}{9}
+\contentsline {subsection}{\numberline {3.2.1}Port}{9}
+\contentsline {subsection}{\numberline {3.2.2}Component}{9}
+\contentsline {subsection}{\numberline {3.2.3}Descriptors}{10}
+\contentsline {section}{\numberline {3.3}Type rules}{10}
+\contentsline {chapter}{\numberline {4}\textsc {Compo}'s semantics}{11}
+\contentsline {section}{\numberline {4.1}Environments}{11}
+\contentsline {subsection}{\numberline {4.1.1}The descriptor environment}{11}
+\contentsline {subsection}{\numberline {4.1.2}The required port environment}{12}
+\contentsline {subsection}{\numberline {4.1.3}The component environment}{12}
+\contentsline {subsection}{\numberline {4.1.4}The current component}{12}
+\contentsline {section}{\numberline {4.2}Value domains}{12}
+\contentsline {subsection}{\numberline {4.2.1}Error}{12}
+\contentsline {subsection}{\numberline {4.2.2}Side effect}{12}
+\contentsline {subsection}{\numberline {4.2.3}Signatures}{12}
+\contentsline {subsection}{\numberline {4.2.4}Services}{13}
+\contentsline {subsection}{\numberline {4.2.5}Connexions}{13}
+\contentsline {subsection}{\numberline {4.2.6}Ports}{14}
+\contentsline {paragraph}{Name}{14}
+\contentsline {paragraph}{Signatures}{14}
+\contentsline {paragraph}{Connexion}{14}
+\contentsline {paragraph}{Owner component}{14}
+\contentsline {paragraph}{Accessible ports}{14}
+\contentsline {paragraph}{}{14}
+\contentsline {subsection}{\numberline {4.2.7}Components}{15}
+\contentsline {subsection}{\numberline {4.2.8}Descriptors}{15}
+\contentsline {section}{\numberline {4.3}Semantics of the language structures}{16}
+\contentsline {subsection}{\numberline {4.3.1}Miscellaneous functions}{16}
+\contentsline {subparagraph}{Semantics of lists}{16}
+\contentsline {subsection}{\numberline {4.3.2}Semantics of signatures}{16}
+\contentsline {subsection}{\numberline {4.3.3}Semantics of services}{16}
+\contentsline {subsection}{\numberline {4.3.4}Semantics of ports}{17}
+\contentsline {paragraph}{Provided ports}{17}
+\contentsline {paragraph}{Required port}{17}
+\contentsline {subsection}{\numberline {4.3.5}Semantics of descriptors}{18}
+\contentsline {paragraph}{Inheritance verification}{18}
+\contentsline {section}{\numberline {4.4}Big-step semantics of expressions}{19}
+\contentsline {subsection}{\numberline {4.4.1}Some simplifications}{19}
+\contentsline {paragraph}{Initialization of an environment}{19}
+\contentsline {paragraph}{Use of the required port environment}{19}
+\contentsline {paragraph}{Creation of a transparent port}{19}
+\contentsline {subsection}{\numberline {4.4.2}Localization of ports}{20}
+\contentsline {section}{\numberline {4.5}Operational semantics of programs}{20}
+\contentsline {subsection}{\numberline {4.5.1}Connect to}{20}
+\contentsline {chapter}{\numberline {5}Puissance de calcul}{24}
+\contentsline {chapter}{Appendices}{26}
+\contentsline {chapter}{\numberline {A}Notations}{27}
+\contentsline {paragraph}{Ensembles}{27}
+\contentsline {paragraph}{Application partielles}{27}
+\contentsline {paragraph}{Domaines de valeurs}{27}
+\contentsline {paragraph}{Environnements}{28}
+\contentsline {chapter}{\numberline {B}Vocabulaire}{29}
+\contentsline {chapter}{\numberline {C}TODO}{30}
