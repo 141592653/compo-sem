@@ -1,0 +1,60 @@
+%{
+  open Ast
+  module SetString = Set.Make(String)
+  let test_expr =  Call(At("truc",Var "bidule"),"bla",[Call(Var "ts","gyg",[]);At("yvy", Int 12)])
+%}
+
+%token EOF
+
+%token <string> VAR
+%token <string> STRING
+%token <int> INT
+			       
+%token RET
+%token CONNECT TO
+%token AT
+%token LPAR RPAR
+%token COMMA SEMIC POINT
+
+%right    SEMIC
+%nonassoc TO
+%left     POINT
+%right    AT
+
+
+
+/* Les non-terminaux par lesquels l'analyse peut commencer,
+ * et la donnée de leurs types. */
+
+%start terminated_expr
+%type <Ast.compo_prog> terminated_expr
+
+%%
+
+
+
+terminated_expr:
+    | prog EOF { $1 }
+
+prog:
+    | prog SEMIC prog       {Seq($1,$3)}  
+    | CONNECT expr TO expr  {Connect($2,$4)}
+    | RET expr              {Ret $2}
+
+expr:
+    | expr POINT VAR LPAR args RPAR %prec POINT
+		            { Call($1,$3,$5) }
+    | VAR AT expr           { At($1,$3)}
+    | INT                   { Int $1 }
+    | VAR                   { Var $1 }
+    | STRING                { String $1 }
+
+args:
+    |                       { [] }
+    | expr                  { [$1] }
+    | expr COMMA args       { $1::$3 }
+
+/* pour le test :
+expr : 123.blub("kdjkb".hey()@dihud,blub,lis.loulou(truc@truc@truc))@machin.chouette()
+
+ */

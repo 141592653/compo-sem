@@ -1,0 +1,14 @@
+lex.cmo : parse.cmi
+lex.cmx : parse.cmx
+main.cmo : parse.cmi lex.cmo ast.cmo
+main.cmx : parse.cmx lex.cmx ast.cmx
+parse.cmo : ast.cmo parse.cmi
+parse.cmx : ast.cmx parse.cmi
+ast.cmo :
+ast.cmx :
+parse.cmo : ast.cmo parse.cmi
+parse.cmx : ast.cmx parse.cmi
+lex.cmo : parse.cmi
+lex.cmx : parse.cmx
+parse.cmi : ast.cmo
+parse.cmi : ast.cmo

@@ -1,0 +1,302 @@
+   0  $accept : %entry% $end
+
+   1  terminated_expr : prog EOF
+
+   2  prog : prog SEMIC prog
+   3       | CONNECT expr TO expr
+   4       | RET expr
+
+   5  expr : expr POINT VAR LPAR args RPAR
+   6       | VAR AT expr
+   7       | INT
+   8       | VAR
+   9       | STRING
+
+  10  args :
+  11       | expr
+  12       | expr COMMA args
+
+  13  name_args :
+  14            | VAR
+  15            | VAR COMMA name_args
+
+  16  sign : VAR LPAR name_args RPAR
+
+  17  sig_list :
+  18           | sign
+  19           | sign SEMIC sig_list
+
+  20  serv : sign LBRACE prog RBRACE
+
+  21  serv_list :
+  22            | serv
+  23            | serv serv_list
+
+  24  port : VAR COLUMN LBRACE sig_list RBRACE
+
+  25  port_list :
+  26            | port
+  27            | port SEMIC port_list
+
+  28  descr : DESCR VAR EXTENDS VAR LBRACE PROVIDES LBRACE port_list RBRACE REQUIRES LBRACE port_list RBRACE IREQUIRES LBRACE port_list RBRACE ARCHI LBRACE prog RBRACE serv_list
+
+  29  %entry% : '\001' terminated_expr
+
+state 0
+	$accept : . %entry% $end  (0)
+
+	'\001'  shift 1
+	.  error
+
+	%entry%  goto 2
+
+
+state 1
+	%entry% : '\001' . terminated_expr  (29)
+
+	RET  shift 3
+	CONNECT  shift 4
+	.  error
+
+	terminated_expr  goto 5
+	prog  goto 6
+
+
+state 2
+	$accept : %entry% . $end  (0)
+
+	$end  accept
+
+
+state 3
+	prog : RET . expr  (4)
+
+	VAR  shift 7
+	STRING  shift 8
+	INT  shift 9
+	.  error
+
+	expr  goto 10
+
+
+state 4
+	prog : CONNECT . expr TO expr  (3)
+
+	VAR  shift 7
+	STRING  shift 8
+	INT  shift 9
+	.  error
+
+	expr  goto 11
+
+
+state 5
+	%entry% : '\001' terminated_expr .  (29)
+
+	.  reduce 29
+
+
+state 6
+	terminated_expr : prog . EOF  (1)
+	prog : prog . SEMIC prog  (2)
+
+	EOF  shift 12
+	SEMIC  shift 13
+	.  error
+
+
+state 7
+	expr : VAR . AT expr  (6)
+	expr : VAR .  (8)
+
+	AT  shift 14
+	EOF  reduce 8
+	TO  reduce 8
+	RPAR  reduce 8
+	COMMA  reduce 8
+	SEMIC  reduce 8
+	POINT  reduce 8
+
+
+state 8
+	expr : STRING .  (9)
+
+	.  reduce 9
+
+
+state 9
+	expr : INT .  (7)
+
+	.  reduce 7
+
+
+state 10
+	prog : RET expr .  (4)
+	expr : expr . POINT VAR LPAR args RPAR  (5)
+
+	POINT  shift 15
+	EOF  reduce 4
+	SEMIC  reduce 4
+
+
+state 11
+	prog : CONNECT expr . TO expr  (3)
+	expr : expr . POINT VAR LPAR args RPAR  (5)
+
+	TO  shift 16
+	POINT  shift 15
+	.  error
+
+
+state 12
+	terminated_expr : prog EOF .  (1)
+
+	.  reduce 1
+
+
+state 13
+	prog : prog SEMIC . prog  (2)
+
+	RET  shift 3
+	CONNECT  shift 4
+	.  error
+
+	prog  goto 17
+
+
+state 14
+	expr : VAR AT . expr  (6)
+
+	VAR  shift 7
+	STRING  shift 8
+	INT  shift 9
+	.  error
+
+	expr  goto 18
+
+
+state 15
+	expr : expr POINT . VAR LPAR args RPAR  (5)
+
+	VAR  shift 19
+	.  error
+
+
+state 16
+	prog : CONNECT expr TO . expr  (3)
+
+	VAR  shift 7
+	STRING  shift 8
+	INT  shift 9
+	.  error
+
+	expr  goto 20
+
+
+state 17
+	prog : prog . SEMIC prog  (2)
+	prog : prog SEMIC prog .  (2)
+
+	SEMIC  shift 13
+	EOF  reduce 2
+
+
+state 18
+	expr : expr . POINT VAR LPAR args RPAR  (5)
+	expr : VAR AT expr .  (6)
+
+	.  reduce 6
+
+
+state 19
+	expr : expr POINT VAR . LPAR args RPAR  (5)
+
+	LPAR  shift 21
+	.  error
+
+
+state 20
+	prog : CONNECT expr TO expr .  (3)
+	expr : expr . POINT VAR LPAR args RPAR  (5)
+
+	POINT  shift 15
+	EOF  reduce 3
+	SEMIC  reduce 3
+
+
+state 21
+	expr : expr POINT VAR LPAR . args RPAR  (5)
+	args : .  (10)
+
+	VAR  shift 7
+	STRING  shift 8
+	INT  shift 9
+	RPAR  reduce 10
+
+	expr  goto 22
+	args  goto 23
+
+
+state 22
+	expr : expr . POINT VAR LPAR args RPAR  (5)
+	args : expr .  (11)
+	args : expr . COMMA args  (12)
+
+	COMMA  shift 24
+	POINT  shift 15
+	RPAR  reduce 11
+
+
+state 23
+	expr : expr POINT VAR LPAR args . RPAR  (5)
+
+	RPAR  shift 25
+	.  error
+
+
+state 24
+	args : expr COMMA . args  (12)
+	args : .  (10)
+
+	VAR  shift 7
+	STRING  shift 8
+	INT  shift 9
+	RPAR  reduce 10
+
+	expr  goto 22
+	args  goto 26
+
+
+state 25
+	expr : expr POINT VAR LPAR args RPAR .  (5)
+
+	.  reduce 5
+
+
+state 26
+	args : expr COMMA args .  (12)
+
+	.  reduce 12
+
+
+Rules never reduced:
+	name_args :  (13)
+	name_args : VAR  (14)
+	name_args : VAR COMMA name_args  (15)
+	sign : VAR LPAR name_args RPAR  (16)
+	sig_list :  (17)
+	sig_list : sign  (18)
+	sig_list : sign SEMIC sig_list  (19)
+	serv : sign LBRACE prog RBRACE  (20)
+	serv_list :  (21)
+	serv_list : serv  (22)
+	serv_list : serv serv_list  (23)
+	port : VAR COLUMN LBRACE sig_list RBRACE  (24)
+	port_list :  (25)
+	port_list : port  (26)
+	port_list : port SEMIC port_list  (27)
+	descr : DESCR VAR EXTENDS VAR LBRACE PROVIDES LBRACE port_list RBRACE REQUIRES LBRACE port_list RBRACE IREQUIRES LBRACE port_list RBRACE ARCHI LBRACE prog RBRACE serv_list  (28)
+
+
+26 terminals, 14 nonterminals
+30 grammar rules, 27 states
