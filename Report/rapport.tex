@@ -385,14 +385,14 @@ a \preceq getType(descr.port)
 \doubleLine
 \AXCm{
 \begin{array}{c} 
-\tau_1 \preceq \upsilon_1\\
+\upsilon_1 \preceq \tau_1\\
 \vdots\\
-\tau_n \preceq \upsilon_n\\
+\upsilon_n \preceq \tau_n\\
 \end{array}
 }
 
 \LLm{}
-\UICm{<\{serv_1 : \tau_1 ; ...; serv_n : \tau_n\}, _> \preceq <\{serv_1 : \upsilon_1 ; ...; serv_n : \upsilon_n; ...; serv_p : : \upsilon_p\},_ >}
+\UICm{<\{serv_1 : \upsilon_1 ; ...; serv_n : \upsilon_n; ...; serv_p : : \upsilon_p\},\_ > \preceq <\{serv_1 : \tau_1 ; ...; serv_n : \tau_n\}, \_>}
 
 \end{prooftree}
 \vspace{0cm}
@@ -428,7 +428,7 @@ list of signature + architecture + port declarations
 \begin{prooftree}
 \AXCm{}
 \LLm{Var_{loc}}
-\UICm{\TypeEnvs{} \vdash v : \Theta(v); \TypeEnvswst{}}
+\UICm{\TypeEnvs{} \vdash v : \Theta(v)}
 \end{prooftree}
 \vspace{0cm}
 
@@ -436,54 +436,47 @@ list of signature + architecture + port declarations
 \AXCm{}
 \LLm{Var_{descr}}
 \RLm{v\notin Dom(\Theta)}
-\UICm{\TypeEnvs{} \vdash v : \Gamma(\sigma)(v);\TypeEnvswst{}}
+\UICm{\TypeEnvs{} \vdash v : \Delta(\delta)(v)}
 \end{prooftree}
 \vspace{0cm}
 
 \begin{prooftree}
 \AXCm{\begin{array}{c}
-\TypeEnvs{}\vdash expr : T ; \TypeEnvswst{'}\\
-\TypeEnvs{'} \vdash arg_1 : T_1 ; \TypeEnvswst{_1}\\
+\TypeEnvs{}\vdash expr : T \\
+\TypeEnvs{} \vdash arg_1 : T_1  \\
 \vdots\\
-\TypeEnvs{_{n-1}} \vdash arg_n : T_n ; \TypeEnvswst{_n}\\
+\TypeEnvs{} \vdash arg_n : T_n \\
 \end{array}}
 
-\AXCm{T\#type(serv) = <(T_1,...T_n),T_{ret}>}
+\AXCm{<(T_1,...T_n),T_{ret}> \preceq T\#interface(serv)}
 \LLm{Call}
-\BICm{\TypeEnvs{}\vdash expr.serv(arg_1,...arg_n) : T_{ret};\TypeEnvswst{_n}}
+\BICm{\TypeEnvs{}\vdash expr.serv(arg_1,...arg_n) : T_{ret}}
 \end{prooftree}
 \vspace{0cm}
 
 
 \begin{prooftree}
-\AXCm{\TypeEnvs{}\vdash expr : T;\TypeEnvswst{'}}
+\AXCm{\TypeEnvs{}\vdash expr : T}
 \LLm{At}
-\UICm{\TypeEnvs{}\vdash port\textbf{@}expr :T';\TypeEnvswst{'}}
+\UICm{\TypeEnvs{}\vdash port\textbf{@}expr :T}
 \end{prooftree}
-\hspace{0.2cm} where $T' = \Gamma(findProv(T)\#self_c)(port)$
 
 
-\vspace{0.5cm}
+\vspace{0cm}
 \begin{prooftree}
-\AXCm{\TypeEnvs{}\vdash expr : T;\TypeEnvswst{'}}
+\AXCm{\TypeEnvs{}\vdash expr : T}
 \LLm{Path}
-\UICm{\TypeEnvs{}\vdash_{e}~!expr : findProv(T); \TypeEnvswst{'}}
+\UICm{\TypeEnvs{}\vdash_{e}~!expr : T}
 \end{prooftree}
 \vspace{0cm}
 
 
 \begin{prooftree}
-\AXCm{\TypeEnvswsPers{'}{}{},max \vdash arch \implies ();\TypeEnvswst{''}}
+\AXCm{\TypeEnvs{} \vdash \Delta(descr)\#arch : ()}
 \LLm{New}
-\UICm{\TypeEnvs{}\vdash descr.new() \implies val;\TypeEnvswst{''}}
+\UICm{\TypeEnvs{}\vdash descr.new() }
 \end{prooftree}
-\hspace{0.2cm} with : 
-\begin{itemize}
-\item $newCompo = <[\![descr\#\pi_P]\!]_{pp},[\![descr\#\pi_{R}]\!]_{rp},>$
-\item $max = max(Dom(\Gamma)) + 1$
-\item $\Gamma' = \Gamma + [max\rightarrow newCompo]$
-\item $val = \Gamma''(max)\#\pi_P(default)$
-\end{itemize}
+
 
 
 
@@ -501,33 +494,26 @@ list of signature + architecture + port declarations
 \framebox[\textwidth][c]
 {\parbox{\textwidth}
 {\small
-\begin{prooftree}
-\AXCm{}
-\LLm{\perp}
-\UICm{\Envs{}\vdash_{p} \perp \implies \perp; \Envsws{}}
-\end{prooftree}
-\vspace{0cm}
 
 \begin{prooftree}
-\AXCm{\TypeEnvs{}\vdash_{p} prog1 : T ; \TypeEnvsws{'}}
-\AXCm{\TypeEnvs{'}\vdash_{p} prog2 : U ; \TypeEnvsws{''}}
+\AXCm{\TypeEnvs{}\vdash_{p} prog1 : T }
+\AXCm{\TypeEnvs{'}\vdash_{p} prog2 : U }
 \LLm{Seq}
-\BICm{\TypeEnvs{}\vdash_{p} prog1;prog2 : U; \TypeEnvsws{''}}
+\BICm{\TypeEnvs{}\vdash_{p} prog1;prog2 : U}
 \end{prooftree}
 \vspace{0cm}
 
 \begin{prooftree}
-\AXCm{\TypeEnvs{}\vdash expr : T; \TypeEnvswst{'}}
+\AXCm{\TypeEnvs{}\vdash expr : T}
 \LLm{Ret}
-\UICm{\TypeEnvs{}\vdash \textbf{return}~expr : T; \TypeEnvsws{'}}
+\UICm{\TypeEnvs{}\vdash \textbf{return}~expr : T}
 \end{prooftree}
-+connect $\Omega$
 \vspace{0cm}
 
 \begin{prooftree}
 \AXCm{}
 \LLm{Require}
-\UICm{\TypeEnvs{}\vdash \textbf{require}~name:T : ();\TypeEnvswsPers{}{+ [name\rightarrow <type,\sigma, empty, 0>]}{}}
+\UICm{\TypeEnvs{}\vdash \textbf{require}~name:T : ()}
 \end{prooftree}
 \vspace{0cm}
 
@@ -535,8 +521,8 @@ list of signature + architecture + port declarations
 
 
 \begin{prooftree}
-\AXCm{\TypeEnvs{}\vdash_{e} expr_1 : T_1; \TypeEnvswst{'}}
-\AXCm{\TypeEnvs{'}\vdash_{e} expr_2 : T_2; \TypeEnvswst{''}}
+\AXCm{\TypeEnvs{}\vdash_{e} expr_1 : T_1}
+\AXCm{\TypeEnvs{'}\vdash_{e} expr_2 : T_2}
 
 \LLm{Connect}
 \BICm{\TypeEnvs{}\vdash_{p} \textbf{connect}~expr_1~\textbf{to}~ expr_2 : ();\TypeEnvsws{_{res}}}
